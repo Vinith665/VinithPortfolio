@@ -1046,6 +1046,27 @@
             font-weight: 700; font-size: 0.95rem; cursor: pointer; transition: var(--transition-smooth);
         }
         .arch-submit-btn:hover { background: #e2e8f0; transform: translateY(-2px); }
+        .arch-submit-btn:disabled { cursor: wait; opacity: 0.7; transform: none; }
+        .contact-form-status { min-height: 1.5em; margin-top: 0.75rem; color: #ff8a8a; font-size: 0.9rem; }
+
+        .contact-success-dialog {
+            width: min(420px, calc(100% - 2rem));
+            padding: 0;
+            color: var(--text-primary);
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-card);
+            box-shadow: var(--shadow-subtle);
+        }
+        .contact-success-dialog::backdrop { background: rgba(0, 0, 0, 0.72); backdrop-filter: blur(4px); }
+        .contact-success-content { position: relative; padding: 2.5rem; text-align: center; }
+        .contact-success-icon { margin-bottom: 1rem; color: #86efac; font-size: 2.5rem; }
+        .contact-success-content h3 { margin-bottom: 0.65rem; font-size: 1.4rem; }
+        .contact-success-content p { color: var(--text-secondary); line-height: 1.6; }
+        .contact-success-close {
+            position: absolute; top: 0.75rem; right: 0.85rem; padding: 0.25rem 0.5rem;
+            color: var(--text-secondary); background: transparent; border: 0; font-size: 1.5rem; cursor: pointer;
+        }
 
         /* ==========================================================================
            FOOTER
@@ -1568,12 +1589,22 @@
                             <textarea class="arch-input" name="message" placeholder="Your Message" required></textarea>
                         </div>
                         <button type="submit" class="arch-submit-btn">Send Message</button>
+                        <p class="contact-form-status" id="contactFormStatus" role="status" aria-live="polite"></p>
                     </form>
                 </div>
             </div>
         </section>
 
     </div>
+
+    <dialog class="contact-success-dialog" id="contactSuccessDialog" aria-labelledby="contactSuccessTitle">
+        <div class="contact-success-content">
+            <button class="contact-success-close" type="button" aria-label="Close">&times;</button>
+            <i class="fa-solid fa-circle-check contact-success-icon" aria-hidden="true"></i>
+            <h3 id="contactSuccessTitle">Message sent!</h3>
+            <p>Thanks for reaching out. I’ll get back to you soon.</p>
+        </div>
+    </dialog>
 
     <!-- ==========================================================================
        FOOTER
@@ -1613,6 +1644,48 @@
        JAVASCRIPT ANIMATION ENGINE
        ========================================================================== -->
     <script>
+        const contactForm = document.querySelector('#contact form');
+        const contactFormStatus = document.getElementById('contactFormStatus');
+        const contactSuccessDialog = document.getElementById('contactSuccessDialog');
+        const contactSuccessClose = contactSuccessDialog.querySelector('.contact-success-close');
+
+        contactForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (!contactForm.reportValidity()) return;
+
+            const submitButton = contactForm.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            contactFormStatus.textContent = 'Sending your message...';
+
+            try {
+                const response = await fetch(contactForm.action, {
+                    method: 'POST',
+                    body: new FormData(contactForm),
+                    headers: { Accept: 'application/json' }
+                });
+                const result = await response.json();
+
+                if (!response.ok) {
+                    const details = Array.isArray(result.errors)
+                        ? result.errors.map((error) => error.message).join(' ')
+                        : '';
+                    throw new Error(details || 'Your message could not be sent. Please try again.');
+                }
+
+                contactForm.reset();
+                contactFormStatus.textContent = '';
+                contactSuccessDialog.showModal();
+            } catch (error) {
+                contactFormStatus.textContent = error instanceof Error
+                    ? error.message
+                    : 'Your message could not be sent. Please try again.';
+            } finally {
+                submitButton.disabled = false;
+            }
+        });
+
+        contactSuccessClose.addEventListener('click', () => contactSuccessDialog.close());
+
         // Scroll Progress Bar
         window.addEventListener('scroll', () => {
             const winScroll = document.documentElement.scrollTop;
